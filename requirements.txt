@@ -1,7 +1,4 @@
-﻿datetime
-google
-google_sheet_api
-gspread==6.1.4
+﻿gspread==6.1.4
 gspread_dataframe
 numpy==1.26.4
 pandas==2.2.3
