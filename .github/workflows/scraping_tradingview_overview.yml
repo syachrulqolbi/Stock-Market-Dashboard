@@ -1,8 +1,8 @@
-name: Scrape TradingView
+name: Scrape Tradingview Overview
 
 on:
   schedule:
-    - cron: "0 * * * *"  # Runs every hour
+    - cron: "0 0 * * *"  # Runs every 5 minutes
   workflow_dispatch:  # Allows manual trigger
 
 jobs:
@@ -25,4 +25,4 @@ jobs:
         run: echo '${{ secrets.CREDENTIAL_GOOGLE_SHEETS }}' > credential_google_sheets.json
 
       - name: Run scraper
-        run: python scraping.py
+        run: python scraping_tradingview_overview.py
