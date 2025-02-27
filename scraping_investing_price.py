@@ -35,6 +35,20 @@ class TradingViewScraper:
         self.driver = webdriver.Chrome(service=service, options=chrome_options)
         self.wait = WebDriverWait(self.driver, 10)
 
+        # Symbol mapping
+        self.symbol_map = {
+            "S&P/ASX 200": "AUS200",
+            "IBEX 35": "ESP35",
+            "Euro Stoxx 50": "EUSTX50",
+            "CAC 40": "FRA40",
+            "DAX": "GER40",
+            "Nikkei 225": "JPN225",
+            "Nasdaq": "NAS100",
+            "S&P 500": "SPX500",
+            "FTSE 100": "UK100",
+            "Dow Jones": "US30"
+            }
+
         # Standardized column headers (added 'Last Updated')
         self.price_headers = ["", "Name", "Last", "High", "Low", "Chg.", "Chg. %", "Time"]
 
@@ -55,7 +69,7 @@ class TradingViewScraper:
         
         url = "https://www.investing.com/indices/major-indices"
         self.driver.get(url)
-        wait = WebDriverWait(self.driver, 5)
+        wait = WebDriverWait(self.driver, 10)
 
         try:
             # Wait for the table to load using XPath
@@ -81,6 +95,16 @@ class TradingViewScraper:
             # Ensure correct column ordering
             df = df.reindex(columns=self.price_headers + ["Last Updated"], fill_value="")
             df = df[self.price_headers[1:]]
+
+            # Apply mapping to create Symbol column
+            df["Symbol"] = df["Name"].map(self.symbol_map).fillna("")
+
+            for col in ["Chg.", "Chg. %"]:
+                df[col] = df[col].str.replace("+", "", regex=False)
+            df["Chg."] = df["Chg."].str.replace("%", "", regex=False)
+
+            column_order = ["Symbol", "Name"] + [col for col in df.columns if col not in ["Symbol", "Name"]]
+            df = df[column_order]
             
             df.to_csv(csv_file, index=False)
             print(f"✅ Data saved to {csv_file}")
