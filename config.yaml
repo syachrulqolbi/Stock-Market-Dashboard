@@ -1,0 +1,41 @@
+symbols_yfinance:
+  AUS200: "^AXJO"   # Australian ASX 200 Index
+  ESP35: "^IBEX"    # Spanish IBEX 35 Index
+  EUSTX50: "^STOXX50E"  # Euro Stoxx 50 Index
+  FRA40: "^FCHI"    # French CAC 40 Index
+  GER40: "^GDAXI"   # German DAX 40 Index
+  JPN225: "^N225"   # Japanese Nikkei 225 Index
+  NAS100: "^IXIC"   # NASDAQ 100 Index
+  SPX500: "^GSPC"   # S&P 500 Index
+  UK100: "^FTSE"    # UK FTSE 100 Index
+  US30: "^DJI"      # US Dow Jones Industrial Average
+
+symbols_tradingview:
+  AUS200: "ASX-XJO"  # Australian ASX 200 Index
+  ESP35: "BME-IBC"    # Spanish IBEX 35 Index
+  EUSTX50: "TVC-SX5E"  # Euro Stoxx 50 Index
+  FRA40: "EURONEXT-PX1"    # French CAC 40 Index
+  GER40: "XETR-DAX"   # German DAX 40 Index
+  JPN225: "INDEX-NKY"   # Japanese Nikkei 225 Index
+  NAS100: "NASDAQ-NDX"   # NASDAQ 100 Index
+  SPX500: "SPX"   # S&P 500 Index
+  UK100: "FTSE-UKX"    # UK FTSE 100 Index
+  US30: "DJ-DJI"      # US Dow Jones Industrial Average
+
+symbols_investing:
+  S&P/ASX 200: "AUS200"  # Australian ASX 200 Index
+  IBEX 35: "ESP35"  # Spanish IBEX 35 Index
+  Euro Stoxx 50: "EUSTX50"  # Euro Stoxx 50 Index
+  CAC 40: "FRA40" # French CAC 40 Index
+  DAX: "GER40"  # German DAX 40 Index
+  Nikkei 225: "JPN225"  # Japanese Nikkei 225 Index
+  Nasdaq: "NAS100"  # NASDAQ 100 Index
+  S&P 500: "SPX500" # S&P 500 Index
+  FTSE 100: "UK100" # UK FTSE 100 Index
+  Dow Jones: "US30" # US Dow Jones Industrial Average
+
+minute_period: "7d"   # Fetch intraday (minute-level) data for the past 7 days
+minute_interval: "1m" # Use 1-minute interval for intraday data
+daily_period: "10y"   # Fetch daily-level data for the past 10 years
+daily_interval: "1d"  # Use 1-day interval for historical daily data
+output_directory: "."  # Directory where CSV files will be saved

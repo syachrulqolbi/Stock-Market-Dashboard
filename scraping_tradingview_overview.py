@@ -1,3 +1,5 @@
+import yaml
+import os
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
@@ -8,21 +10,30 @@ from webdriver_manager.chrome import ChromeDriverManager
 import pandas as pd
 import numpy as np
 from datetime import datetime
-import gspread
-from google.oauth2.service_account import Credentials
-from gspread_dataframe import set_with_dataframe
-from gspread.exceptions import SpreadsheetNotFound
 from google_sheet_api import GoogleSheetsUploader
+from typing import Dict, Any
 
 class TradingViewScraper:
-    def __init__(self, headless: bool = True):
+    def __init__(self, headless: bool = True, config_path="config.yaml"):
         """
         Initializes the WebDriver with optimized Chrome options.
         :param headless: Run Chrome in headless mode (default: True)
+        :param config_path: Path to the YAML configuration file
         """
+        self.config_file = config_path  # Ensure correct reference
+        
+        # Load configuration
+        self.config = self.load_config()
+        
+        self.symbol_map = self.config.get("symbols_tradingview", {})
+        self.output_dir = self.config.get("output_directory", ".")
+
+        # Ensure output directory exists
+        os.makedirs(self.output_dir, exist_ok=True)
+
         chrome_options = Options()
         if headless:
-            chrome_options.add_argument("--headless=new")  # Ensures compatibility with latest Chrome versions
+            chrome_options.add_argument("--headless=new")
 
         # Optimize browser settings
         chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
@@ -39,36 +50,42 @@ class TradingViewScraper:
         self.driver = webdriver.Chrome(service=service, options=chrome_options)
         self.wait = WebDriverWait(self.driver, 10)
 
-        # Symbol mapping
-        self.symbol_map = {
-            "AUS200": "ASX-XJO", "ESP35": "BME-IBC", "EUSTX50": "TVC-SX5E",
-            "FRA40": "EURONEXT-PX1", "GER40": "XETR-DAX", "JPN225": "INDEX-NKY",
-            "NAS100": "NASDAQ-NDX", "SPX500": "SPX", "UK100": "FTSE-UKX",
-            "US30": "DJ-DJI"
-        }
+        # Standardized column headers
+        self.overview_headers = [
+            "Pair", "Symbol", "Market cap", "Price", "Change %", "Volume", "Rel Volume",
+            "P/E", "EPS dil", "EPS dil growth", "Div yield %", "Sector", "Analyst Rating", "Last Updated"
+        ]
+        
+    def load_config(self) -> Dict[str, Any]:
+        """
+        Loads the YAML configuration file.
 
-        # Standardized column headers (added 'Last Updated')
-        self.overview_headers = ["Pair", "Symbol", "Market cap", "Price", "Change %", "Volume", "Rel Volume",
-                        "P/E", "EPS dil", "EPS dil growth", "Div yield %", "Sector", "Analyst Rating", "Last Updated"]
+        Returns:
+            Dict[str, Any]: Parsed YAML configuration.
+        """
+        try:
+            with open(self.config_file, "r") as file:
+                return yaml.safe_load(file)
+        except Exception as e:
+            raise FileNotFoundError(f"Error loading config file: {e}")
 
     def close_browser(self):
         """Closes the WebDriver."""
         self.driver.quit()
 
-    def scrape_tradingview_overview(self, csv_file="tradingview_indices_components.csv"):
+    def scrape_tradingview_overview(self, filename="tradingview_indices_components.csv"):
         """
         Scrapes TradingView for component data of all symbols in the symbol map.
-        
+
         Args:
-            csv_file (str): The filename where the scraped data will be saved.
+            filename (str): The filename where the scraped data will be saved.
         
         Returns:
-            str: The name of the saved CSV file.
+            str: The path of the saved CSV file.
         """
         all_data = []
         
-        for symbol in self.symbol_map:
-            tradingview_symbol = self.symbol_map.get(symbol, symbol)
+        for symbol, tradingview_symbol in self.symbol_map.items():
             url = f"https://www.tradingview.com/symbols/{tradingview_symbol}/components/"
             self.driver.get(url)
             wait = WebDriverWait(self.driver, 5)
@@ -107,15 +124,15 @@ class TradingViewScraper:
             df_final.dropna(subset=["Symbol"], inplace=True)
             df_final.replace("—", "", inplace=True)
             
-            columns_to_clean = ["Market cap", "Price", "EPS dil"]
-            for column in columns_to_clean:
-                df_final[column] = df_final[column].str.replace(r"[^\d.\sKMB]", "", regex=True)
-            
+            # Convert numeric columns
+            for column in ["Market cap", "Price", "EPS dil"]:
+                df_final[column] = df_final[column].str.replace(r"[^\d.\sKMB]", "", regex=True).apply(pd.to_numeric, errors='coerce')
+
             for col in ["EPS dil growth", "Change %"]:
                 df_final[col] = df_final[col].str.replace("+", "", regex=False)
-            
+
             def convert_volume(value):
-                if isinstance(value, str):
+                if isinstance(value, str) and value:
                     value = value.replace(",", "")
                     if "K" in value:
                         return float(value.replace("K", "")) * 1000
@@ -129,23 +146,28 @@ class TradingViewScraper:
             df_final["Volume"] = df_final["Volume"].apply(convert_volume)
             df_final["Market cap"] = df_final["Market cap"].apply(convert_volume)
             df_final[['Symbol', 'Description']] = df_final["Symbol"].str.replace(r'\n(D|REIT|P|DR)$', '', regex=True).str.split("\n", n=1, expand=True)
+
             column_order = ["Symbol", "Description"] + [col for col in df_final.columns if col not in ["Symbol", "Description"]]
             df_final = df_final[column_order]
 
+            # Save CSV using the output directory from YAML
+            output_path = os.path.join(self.output_dir, filename)
+            df_final.to_csv(output_path, index=False)
+            print(f"✅ Data saved to {output_path}")
+            return output_path
+        
+        return None
 
-            df_final.to_csv(csv_file, index=False)
-            print(f"✅ Data saved to {csv_file}")
-
-        return csv_file
-    
 if __name__ == "__main__":
-    scraper = TradingViewScraper()
-    csv_file = scraper.scrape_tradingview_overview(csv_file="tradingview_indices_components.csv")
+    scraper = TradingViewScraper(config_path="config.yaml")
+    csv_path = scraper.scrape_tradingview_overview()
 
-    # Upload data to Google Sheets
-    uploader = GoogleSheetsUploader(
-        credentials_file="credential_google_sheets.json",
-        spreadsheet_name="Stock Market Dashboard"
-    )
-
-    uploader.upload_to_sheets(csv_file, name_sheet="tradingview_overview")
+    if csv_path:
+        # Upload data to Google Sheets
+        uploader = GoogleSheetsUploader(
+            credentials_file="credential_google_sheets.json",
+            spreadsheet_name="Stock Market Dashboard"
+        )
+        uploader.upload_to_sheets(csv_path, name_sheet="tradingview_overview")
+    else:
+        print("❌ No data scraped, skipping Google Sheets upload.")

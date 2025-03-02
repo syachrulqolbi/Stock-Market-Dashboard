@@ -1,8 +1,8 @@
-name: Scrape Investing Price
+name: Fetch Yahoo Finance News
 
 on:
   schedule:
-    - cron: "*/5 * * * *"  # Runs every 5 minutes
+    - cron: "0 0 * * *"  # Runs daily
   workflow_dispatch:  # Allows manual trigger
 
 jobs:
@@ -24,5 +24,5 @@ jobs:
       - name: Create credentials.json
         run: echo '${{ secrets.CREDENTIAL_GOOGLE_SHEETS }}' > credential_google_sheets.json
 
-      - name: Run scraper
-        run: python scraping_investing_price.py
+      - name: Run fetcher
+        run: python yfinance_news_fetcher.py

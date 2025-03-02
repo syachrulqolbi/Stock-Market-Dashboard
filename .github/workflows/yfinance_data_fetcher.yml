@@ -1,8 +1,8 @@
-name: Scrape Tradingview Overview
+name: Fetch Yahoo Finance Data
 
 on:
   schedule:
-    - cron: "0 0 * * *"  # Runs daily
+    - cron: "*/5 * * * *"  # Runs every 5 minutes
   workflow_dispatch:  # Allows manual trigger
 
 jobs:
@@ -24,5 +24,5 @@ jobs:
       - name: Create credentials.json
         run: echo '${{ secrets.CREDENTIAL_GOOGLE_SHEETS }}' > credential_google_sheets.json
 
-      - name: Run scraper
-        run: python scraping_tradingview_overview.py
+      - name: Run fetcher
+        run: python yfinance_data_fetcher.py

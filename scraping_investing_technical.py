@@ -8,15 +8,28 @@ from webdriver_manager.chrome import ChromeDriverManager
 import pandas as pd
 from datetime import datetime
 from google_sheet_api import GoogleSheetsUploader
-import time
-
+import yaml
+from typing import Dict, Any
+import os
 
 class TradingViewScraper:
-    def __init__(self, headless: bool = True):
+    def __init__(self, headless: bool = True, config_path="config.yaml"):
         """
         Initializes the WebDriver with optimized Chrome options.
         :param headless: Run Chrome in headless mode (default: True)
+        :param config_path: Path to the YAML configuration file
         """
+        self.config_file = config_path  # Ensure correct reference
+
+        # Load configuration
+        self.config = self.load_config()
+
+        self.symbol_map = self.config.get("symbols_investing", {})
+        self.output_dir = self.config.get("output_directory", ".")
+
+        # Ensure output directory exists
+        os.makedirs(self.output_dir, exist_ok=True)
+
         chrome_options = Options()
         if headless:
             chrome_options.add_argument("--headless=new")  # Ensures compatibility with latest Chrome versions
@@ -36,22 +49,21 @@ class TradingViewScraper:
         self.driver = webdriver.Chrome(service=service, options=chrome_options)
         self.wait = WebDriverWait(self.driver, 10)
 
-        # Symbol mapping
-        self.symbol_map = {
-            "S&P/ASX 200": "AUS200",
-            "IBEX 35": "ESP35",
-            "Euro Stoxx 50": "EUSTX50",
-            "CAC 40": "FRA40",
-            "DAX": "GER40",
-            "Nikkei 225": "JPN225",
-            "Nasdaq": "NAS100",
-            "S&P 500": "SPX500",
-            "FTSE 100": "UK100",
-            "Dow Jones": "US30"
-            }
-
         # Standardized column headers (added 'Last Updated')
-        self.technical_headers = ["", "Name", "Hourly", "Daily", "Weekly", "Monthly"]
+        self.technical_headers = ["Name", "Hourly", "Daily", "Weekly", "Monthly", "Last Updated"]
+
+    def load_config(self) -> Dict[str, Any]:
+        """
+        Loads the YAML configuration file.
+
+        Returns:
+            Dict[str, Any]: Parsed YAML configuration.
+        """
+        try:
+            with open(self.config_file, "r") as file:
+                return yaml.safe_load(file)
+        except Exception as e:
+            raise FileNotFoundError(f"Error loading config file: {e}")
 
     def close_browser(self):
         """Closes the WebDriver."""
@@ -75,7 +87,8 @@ class TradingViewScraper:
         try:
             technical_button = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="__next"]/div[2]/div[2]/div[2]/div[1]/div[4]/div[1]/div[1]/button[3]')))
             technical_button.click()
-            # Wait for the table to load using XPath
+            
+            # Wait for the table to load
             wait.until(EC.presence_of_element_located((By.XPATH, '//table[contains(@class, "datatable-v2_table__93S4Y")]')))
 
             # Select the table rows
@@ -84,39 +97,41 @@ class TradingViewScraper:
             table_data = []
             for row in rows:
                 cells = row.find_elements(By.TAG_NAME, "td")
-                if len(cells) >= len(self.technical_headers):  # Ensure all required columns exist
-                    table_data.append([cell.text.strip() for cell in cells[:len(self.technical_headers)]])
+                row_data = [cell.text.strip() for cell in cells]
+                
+                # Ensure row length matches expected columns
+                if len(row_data) >= len(self.technical_headers) - 1:
+                    row_data = row_data[:len(self.technical_headers) - 1]
+                    row_data.append(datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))  # Append timestamp
+                    table_data.append(row_data)
 
             # Ensure data is available before proceeding
             if not table_data:
-                print("No data found.")
+                print("❌ No data found.")
                 return None
 
             df = pd.DataFrame(table_data, columns=self.technical_headers)
-
-            # Ensure correct column ordering
-            df = df.reindex(columns=self.technical_headers, fill_value="")
-            df = df[self.technical_headers[1:]]
-            df["Last Updated"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
             # Apply mapping to create Symbol column
             df["Symbol"] = df["Name"].map(self.symbol_map).fillna("")
 
             column_order = ["Symbol", "Name"] + [col for col in df.columns if col not in ["Symbol", "Name"]]
             df = df[column_order]
-            
-            df.to_csv(csv_file, index=False)
-            print(f"✅ Data saved to {csv_file}")
 
-            return csv_file
+            # Save to CSV
+            output_path = os.path.join(self.output_dir, csv_file)
+            df.to_csv(output_path, index=False)
+            print(f"✅ Data saved to {output_path}")
+
+            return output_path
 
         except Exception as e:
-            print(f"Error scraping Investing.com: {e}")
+            print(f"❌ Error scraping Investing.com: {e}")
             return None
 
 
 if __name__ == "__main__":
-    scraper = TradingViewScraper()
+    scraper = TradingViewScraper(config_path="config.yaml")
     csv_file = scraper.scrape_investing_technical(csv_file="investing_indices_technical.csv")
 
     if csv_file:
