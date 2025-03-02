@@ -3,5 +3,6 @@ gspread_dataframe
 numpy==1.26.4
 pandas==2.2.3
 selenium==4.26.1
+webdriver_manager
 pyyaml
 yfinance==0.2.54
