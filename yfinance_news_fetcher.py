@@ -90,6 +90,10 @@ class YahooFinanceNewsFetcher:
 
         # Convert to DataFrame
         df = pd.DataFrame(news)
+        df["Symbol"] = symbol
+        df["Symbol"] = symbol
+        column_order = ["Symbol"] + [col for col in df.columns if col not in ["Symbol"]]
+        df = df[column_order]
 
         # Define file path
         filename = f"{symbol}_news.csv"

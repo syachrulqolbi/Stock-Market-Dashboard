@@ -50,7 +50,7 @@ class TradingViewScraper:
         self.wait = WebDriverWait(self.driver, 10)
 
         # Standardized column headers (added 'Last Updated')
-        self.technical_headers = ["Name", "Hourly", "Daily", "Weekly", "Monthly", "Last Updated"]
+        self.technical_headers = ["", "Name", "Hourly", "Daily", "Weekly", "Monthly", "Last Updated"]
 
     def load_config(self) -> Dict[str, Any]:
         """
@@ -98,6 +98,7 @@ class TradingViewScraper:
             for row in rows:
                 cells = row.find_elements(By.TAG_NAME, "td")
                 row_data = [cell.text.strip() for cell in cells]
+                print(row_data)
                 
                 # Ensure row length matches expected columns
                 if len(row_data) >= len(self.technical_headers) - 1:
@@ -111,6 +112,7 @@ class TradingViewScraper:
                 return None
 
             df = pd.DataFrame(table_data, columns=self.technical_headers)
+            print(df)
 
             # Apply mapping to create Symbol column
             df["Symbol"] = df["Name"].map(self.symbol_map).fillna("")

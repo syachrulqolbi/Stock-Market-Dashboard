@@ -48,7 +48,7 @@ class YahooFinanceDataFetcher:
             print(f"Error fetching data for {ticker}: {e}")
             return pd.DataFrame()
 
-    def clean_data(self, data: pd.DataFrame) -> pd.DataFrame:
+    def clean_data(self, data: pd.DataFrame, symbol: str) -> pd.DataFrame:
         """Clean and preprocess the downloaded data.
         
         Args:
@@ -76,6 +76,10 @@ class YahooFinanceDataFetcher:
         for col in numeric_cols:
             if col in data.columns:
                 data[col] = pd.to_numeric(data[col], errors='coerce')
+
+        data["Symbol"] = symbol
+        column_order = ["Symbol"] + [col for col in data.columns if col not in ["Symbol"]]
+        data = data[column_order]
 
         return data
 
@@ -126,12 +130,12 @@ class YahooFinanceDataFetcher:
 
             # Clean data before saving
             if not minute_data.empty:
-                minute_data = self.clean_data(minute_data)
+                minute_data = self.clean_data(minute_data, symbol)
                 minute_file = self.save_to_csv(minute_data, f"{symbol}_minutes.csv")
                 self.upload_to_google_sheets(minute_file, f"{symbol}_minutes")
 
             if not daily_data.empty:
-                daily_data = self.clean_data(daily_data)
+                daily_data = self.clean_data(daily_data, symbol)
                 daily_file = self.save_to_csv(daily_data, f"{symbol}_daily.csv")
                 self.upload_to_google_sheets(daily_file, f"{symbol}_daily")
 
