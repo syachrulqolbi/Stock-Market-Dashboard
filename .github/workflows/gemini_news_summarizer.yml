@@ -21,8 +21,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Create credentials.json
+      - name: Create gemini credentials.json
         run: echo '${{ secrets.CREDENTIAL_GEMINI }}' > credential_gemini.json
+
+      - name: Create google sheets credentials.json
+        run: echo '${{ secrets.CREDENTIAL_GOOGLE_SHEETS }}' > credential_google_sheets.json
 
       - name: Run summarizer
         run: python gemini_news_summarizer.py
