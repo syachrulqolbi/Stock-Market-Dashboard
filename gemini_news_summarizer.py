@@ -61,6 +61,7 @@ class NewsSummarizer:
                 df = self.uploader.get_sheet_as_dataframe(f"{symbol}_news")
 
                 if df.empty or "Summary" not in df.columns:
+                    results.append({"Symbol": symbol, "Summary": ""})
                     logging.warning(f"Skipping {symbol}: No data available.")
                     continue
 
@@ -80,7 +81,6 @@ class NewsSummarizer:
                 logging.info(f"Successfully summarized news for {symbol}")
 
             except Exception as e:
-                results.append({"Symbol": symbol, "Summary": "Error summarizing"})
                 logging.error(f"Error processing {symbol}: {e}")
 
         return pd.DataFrame(results)
