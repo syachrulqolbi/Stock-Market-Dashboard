@@ -1,7 +1,7 @@
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
-from gspread_dataframe import set_with_dataframe
+from gspread_dataframe import set_with_dataframe, get_as_dataframe
 from gspread.exceptions import SpreadsheetNotFound
 
 
@@ -46,3 +46,15 @@ class GoogleSheetsUploader:
         sheet = self.get_sheet(name_sheet)  # Dynamically get the correct sheet
         set_with_dataframe(sheet, df)
         print(f"✅ DataFrame successfully uploaded to Google Sheets: {name_sheet}!")
+
+    def get_sheet_as_dataframe(self, name_sheet):
+        """
+        Retrieve Google Sheets data as a Pandas DataFrame.
+        """
+        try:
+            sheet = self.get_sheet(name_sheet)
+            df = get_as_dataframe(sheet, evaluate_formulas=True)  # Convert Google Sheets to DataFrame
+            print(f"✅ Successfully retrieved data from '{name_sheet}' as a DataFrame.")
+            return df
+        except Exception as e:
+            raise RuntimeError(f"Failed to retrieve data from Google Sheets: {e}")
