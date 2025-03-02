@@ -8,3 +8,4 @@ webdriver_manager
 pyyaml
 yfinance==0.2.54
 transformers
+tensorflow
