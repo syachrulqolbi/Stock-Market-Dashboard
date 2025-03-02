@@ -1,5 +1,5 @@
 ﻿gspread==6.1.4
-gspread_dataframe
+google-generativeai
 numpy==1.26.4
 pandas==2.2.3
 selenium==4.26.1
