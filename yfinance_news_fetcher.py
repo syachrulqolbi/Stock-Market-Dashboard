@@ -3,6 +3,7 @@ import yaml
 import os
 import pandas as pd
 from typing import Dict, List, Any
+from google_sheet_api import GoogleSheetsUploader
 
 class YahooFinanceNewsFetcher:
     """Class to fetch and save the latest news for stock indices from Yahoo Finance based on a YAML configuration file."""
@@ -72,17 +73,20 @@ class YahooFinanceNewsFetcher:
             print(f"Error fetching news for {symbol}: {e}")
             return []
 
-    def save_news_to_csv(self, symbol: str, news: List[Dict[str, Any]]):
+    def save_news_to_csv(self, symbol: str, news: List[Dict[str, Any]]) -> str:
         """
         Saves the fetched news to a CSV file in the specified output directory.
 
         Args:
             symbol (str): Yahoo Finance ticker symbol.
             news (List[Dict[str, Any]]): List of news articles.
+
+        Returns:
+            str: The saved file path.
         """
         if not news:
             print(f"No news to save for {symbol}.")
-            return
+            return ""
 
         # Convert to DataFrame
         df = pd.DataFrame(news)
@@ -93,16 +97,40 @@ class YahooFinanceNewsFetcher:
 
         # Save to CSV
         df.to_csv(filepath, index=False)
-        print(f"Saved news for {symbol} to {filepath}")
+        print(f"✅ Saved news for {symbol} to {filepath}")
 
-    def fetch_all_news(self):
+        return filepath
+    
+    def upload_to_google_sheets(self, file_path: str, sheet_name: str) -> None:
+        """Upload a CSV file to Google Sheets.
+        
+        Args:
+            file_path (str): Path to the CSV file to upload.
+            sheet_name (str): Name of the Google Sheets worksheet.
+        """
+        if file_path and os.path.exists(file_path):
+            uploader = GoogleSheetsUploader(
+                credentials_file="credential_google_sheets.json",
+                spreadsheet_name="Stock Market Dashboard"
+            )
+            uploader.upload_to_sheets(file_path, name_sheet=sheet_name)
+            print(f"Uploaded {file_path} to Google Sheets as {sheet_name}")
+        else:
+            print(f"File {file_path} does not exist. Skipping upload.")
+
+    def fetch_all_news(self) -> List[str]:
         """
         Fetches, displays, and saves news for all symbols listed in the YAML configuration.
+
+        Returns:
+            List[str]: List of saved CSV file paths.
         """
         for name, symbol in self.symbols.items():
-            print(f"\nFetching news for {name} ({symbol})...")
+            print(f"\n📩 Fetching news for {name} ({symbol})...")
             news = self.fetch_news(symbol)
-            self.save_news_to_csv(name, news)  # Save news to CSV
+            csv_path = self.save_news_to_csv(name, news)
+            print(csv_path)
+            self.upload_to_google_sheets(csv_path, f"{name}_news")
 
 
 if __name__ == "__main__":
