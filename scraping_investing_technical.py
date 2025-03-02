@@ -98,7 +98,6 @@ class TradingViewScraper:
             for row in rows:
                 cells = row.find_elements(By.TAG_NAME, "td")
                 row_data = [cell.text.strip() for cell in cells]
-                print(row_data)
                 
                 # Ensure row length matches expected columns
                 if len(row_data) >= len(self.technical_headers) - 1:
@@ -112,13 +111,13 @@ class TradingViewScraper:
                 return None
 
             df = pd.DataFrame(table_data, columns=self.technical_headers)
-            print(df)
 
             # Apply mapping to create Symbol column
             df["Symbol"] = df["Name"].map(self.symbol_map).fillna("")
 
             column_order = ["Symbol", "Name"] + [col for col in df.columns if col not in ["Symbol", "Name"]]
             df = df[column_order]
+            del df[""]
 
             # Save to CSV
             output_path = os.path.join(self.output_dir, csv_file)
