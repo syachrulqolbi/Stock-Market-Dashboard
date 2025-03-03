@@ -41,9 +41,15 @@ class GoogleSheetsUploader:
         except gspread.exceptions.WorksheetNotFound:
             raise FileNotFoundError(f"Worksheet '{name_sheet}' not found in the spreadsheet.")
 
+    def clear_sheet(self, sheet):
+        """Clears all existing data from the sheet."""
+        sheet.clear()
+        print(f"✅ Cleared all data from sheet: {sheet.title}")
+
     def upload_to_sheets(self, csv_file, name_sheet):
         df = self.read_csv(csv_file)
         sheet = self.get_sheet(name_sheet)  # Dynamically get the correct sheet
+        self.clear_sheet(sheet)  # Clear existing data before uploading new data
         set_with_dataframe(sheet, df)
         print(f"✅ DataFrame successfully uploaded to Google Sheets: {name_sheet}!")
 

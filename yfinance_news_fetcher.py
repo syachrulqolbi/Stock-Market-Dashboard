@@ -1,143 +1,142 @@
 import yfinance as yf
 import yaml
-import os
 import pandas as pd
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
+from pathlib import Path
 from google_sheet_api import GoogleSheetsUploader
 
+
 class YahooFinanceNewsFetcher:
-    """Class to fetch and save the latest news for stock indices from Yahoo Finance based on a YAML configuration file."""
+    """
+    Fetch and save the latest news for stock indices from Yahoo Finance based on a YAML configuration file.
+    """
 
     def __init__(self, config_file: str):
         """
-        Initializes the YahooFinanceNewsFetcher by loading symbols and output directory from YAML config file.
-
-        Args:
-            config_file (str): Path to the YAML configuration file.
+        Initialize the news fetcher by loading stock symbols and output directory from the configuration file.
+        :param config_file: Path to the YAML configuration file.
         """
-        self.config_file = config_file
-        self.config = self.load_config()
-
-        # Extract Yahoo Finance symbols
+        self.config = self._load_config(config_file)
         self.symbols = self.config.get("symbols_yfinance", {})
+        
         if not self.symbols:
             raise ValueError("No symbols found in config.yaml under 'symbols_yfinance'.")
+        
+        self.output_dir = Path(self.config.get("output_directory", "output"))
+        self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Extract output directory and create it if not exists
-        self.output_dir = self.config.get("output_directory", ".")
-        os.makedirs(self.output_dir, exist_ok=True)
-
-    def load_config(self) -> Dict[str, Any]:
+    @staticmethod
+    def _load_config(config_file: str) -> Dict[str, Any]:
         """
-        Loads the YAML configuration file.
-
-        Returns:
-            Dict[str, Any]: Parsed YAML configuration.
+        Load and parse the YAML configuration file.
+        :param config_file: Path to the YAML configuration file.
+        :return: Parsed configuration dictionary.
         """
         try:
-            with open(self.config_file, "r") as file:
+            with open(config_file, "r") as file:
                 return yaml.safe_load(file)
-        except Exception as e:
-            raise FileNotFoundError(f"Error loading config file: {e}")
+        except (FileNotFoundError, yaml.YAMLError) as e:
+            raise ValueError(f"Error loading config file {config_file}: {e}")
 
-    def fetch_news(self, symbol: str) -> List[Dict[str, Any]]:
+    @staticmethod
+    def fetch_news(symbol: str) -> List[Dict[str, Any]]:
         """
-        Fetches the latest news for a given stock index symbol.
-
-        Args:
-            symbol (str): Yahoo Finance ticker symbol.
-
-        Returns:
-            List[Dict[str, Any]]: List of news articles.
+        Fetch the latest news for a given stock symbol from Yahoo Finance.
+        :param symbol: Stock symbol to fetch news for.
+        :return: List of dictionaries containing news articles.
         """
         try:
             stock = yf.Ticker(symbol)
-            news = stock.news  # Fetch news articles from Yahoo Finance
+            news = stock.news or []  # Fetch news articles, defaulting to empty list if none found
 
-            if not news:
-                print(f"No news available for {symbol}.")
-                return []
-
-            # Filter news to ensure valid structure
-            formatted_news = []
-            for article in news[:10]:  # Only take the top 5 latest articles
-                formatted_news.append({
-                    "Title": article["content"].get("title", ""),
-                    "Summary": article["content"].get("summary", ""),
-                    "URL": article["content"]["clickThroughUrl"].get("url", ""),
-                    "Published": article["content"].get("pubDate", "")
-                })
-
-            return formatted_news
+            return [
+                {
+                    "Symbol": symbol,
+                    "Title": article.get("title", ""),
+                    "Summary": article.get("summary", ""),
+                    "URL": article.get("link", ""),
+                    "Published": article.get("providerPublishTime", "")
+                }
+                for article in news[:10]  # Limit to the top 10 articles
+            ]
         except Exception as e:
-            print(f"Error fetching news for {symbol}: {e}")
-            return []
+            print(f"⚠️ Error fetching news for {symbol}: {e}")
+            return [{"Symbol": symbol, "Title": "", "Summary": "", "URL": "", "Published": ""}]
 
-    def save_news_to_csv(self, symbol: str, news: List[Dict[str, Any]]) -> str:
+    def fetch_all_news(self) -> pd.DataFrame:
         """
-        Saves the fetched news to a CSV file in the specified output directory.
-
-        Args:
-            symbol (str): Yahoo Finance ticker symbol.
-            news (List[Dict[str, Any]]): List of news articles.
-
-        Returns:
-            str: The saved file path.
+        Fetch news for all configured stock symbols.
+        :return: DataFrame containing news articles.
         """
-        if not news:
-            print(f"No news to save for {symbol}.")
-            return ""
+        all_news = [news for symbol in self.symbols.values() for news in self.fetch_news(symbol)]
+        return pd.DataFrame(all_news)
 
-        # Convert to DataFrame
-        df = pd.DataFrame(news)
-        df["Symbol"] = symbol
-        df["Symbol"] = symbol
-        column_order = ["Symbol"] + [col for col in df.columns if col not in ["Symbol"]]
-        df = df[column_order]
+    def save_news_to_csv(self, news_df: pd.DataFrame) -> Optional[Path]:
+        """
+        Save the fetched news DataFrame to a CSV file.
+        :param news_df: DataFrame containing news data.
+        :return: Path to the saved CSV file or None if no data is available.
+        """
+        if news_df.empty:
+            print("⚠️ No news data to save.")
+            return None
 
-        # Define file path
-        filename = f"{symbol}_news.csv"
-        filepath = os.path.join(self.output_dir, filename)
+        # Reverse symbol mapping for user-friendly representation
+        reverse_symbols = {v: k for k, v in self.symbols.items()}
+        news_df["Symbol"] = news_df["Symbol"].map(lambda x: reverse_symbols.get(x, x))
 
-        # Save to CSV
-        df.to_csv(filepath, index=False)
-        print(f"✅ Saved news for {symbol} to {filepath}")
-
+        filepath = self.output_dir / "yfinance_news.csv"
+        news_df.drop_duplicates().to_csv(filepath, index=False)
+        print(f"✅ News saved to {filepath}")
         return filepath
-    
-    def upload_to_google_sheets(self, file_path: str, sheet_name: str) -> None:
-        """Upload a CSV file to Google Sheets.
-        
-        Args:
-            file_path (str): Path to the CSV file to upload.
-            sheet_name (str): Name of the Google Sheets worksheet.
+
+    def upload_to_google_sheets(self, file_path: Optional[Path], sheet_name: str):
         """
-        if file_path and os.path.exists(file_path):
+        Upload the saved CSV file to Google Sheets.
+        :param file_path: Path to the CSV file.
+        :param sheet_name: Target Google Sheet name.
+        """
+        if file_path and file_path.exists():
             uploader = GoogleSheetsUploader(
                 credentials_file="credential_google_sheets.json",
                 spreadsheet_name="Stock Market Dashboard"
             )
-            uploader.upload_to_sheets(file_path, name_sheet=sheet_name)
-            print(f"Uploaded {file_path} to Google Sheets as {sheet_name}")
+            uploader.upload_to_sheets(str(file_path), name_sheet=sheet_name)
+            print(f"✅ Uploaded {file_path} to Google Sheets as {sheet_name}")
         else:
-            print(f"File {file_path} does not exist. Skipping upload.")
-
-    def fetch_all_news(self) -> List[str]:
-        """
-        Fetches, displays, and saves news for all symbols listed in the YAML configuration.
-
-        Returns:
-            List[str]: List of saved CSV file paths.
-        """
-        for name, symbol in self.symbols.items():
-            print(f"\n📩 Fetching news for {name} ({symbol})...")
-            news = self.fetch_news(symbol)
-            csv_path = self.save_news_to_csv(name, news)
-            print(csv_path)
-            self.upload_to_google_sheets(csv_path, f"{name}_news")
+            print(f"⚠️ File {file_path} does not exist. Skipping upload.")
 
 
 if __name__ == "__main__":
-    config_file = "config.yaml"  # Path to the configuration file
+    config_file = "config.yaml"
     news_fetcher = YahooFinanceNewsFetcher(config_file)
-    news_fetcher.fetch_all_news()  # Fetch, display, and save news for all symbols
+    news_df = news_fetcher.fetch_all_news()
+
+    uploader = GoogleSheetsUploader(
+        credentials_file="credential_google_sheets.json",
+        spreadsheet_name="Stock Market Dashboard"
+    )
+
+    try:
+        old_news_df = uploader.get_sheet_as_dataframe("yfinance_news")
+    except Exception as e:
+        print(f"⚠️ Could not fetch existing data from Google Sheets: {e}")
+        old_news_df = pd.DataFrame()
+
+    # Merge new and old data, handling duplicates
+    if not old_news_df.empty:
+        merged_news_df = pd.concat([old_news_df, news_df], ignore_index=True)
+        merged_news_df["Published"] = pd.to_datetime(merged_news_df["Published"], errors="coerce")
+        merged_news_df = merged_news_df.drop_duplicates().sort_values(by=["Symbol", "Published"], ascending=[True, False])
+        
+        # Keep only the latest 10 news items per symbol
+        merged_news_df = merged_news_df.groupby("Symbol").head(10).reset_index(drop=True)
+    else:
+        merged_news_df = news_df
+
+    # Save and upload if news data exists
+    if not merged_news_df.empty:
+        merged_news_df = merged_news_df[merged_news_df["Title"] != ""]
+        file_path = news_fetcher.save_news_to_csv(merged_news_df)
+        if file_path:
+            news_fetcher.upload_to_google_sheets(file_path, "yfinance_news")
