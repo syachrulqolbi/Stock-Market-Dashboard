@@ -6,7 +6,7 @@ on:
   workflow_dispatch:  # Allows manual trigger
 
 jobs:
-  scrape:
+  fetch:
     runs-on: ubuntu-latest
 
     steps:
