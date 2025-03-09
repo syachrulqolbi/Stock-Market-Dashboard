@@ -24,8 +24,8 @@ jobs:
       - name: Create gemini credentials.json
         run: echo '${{ secrets.CREDENTIAL_GEMINI }}' > credential_gemini.json
 
-      - name: Create google sheets credentials.json
-        run: echo '${{ secrets.CREDENTIAL_GOOGLE_SHEETS }}' > credential_google_sheets.json
+      - name: Create MySQL credentials.json
+        run: echo '${{ secrets.CREDENTIAL_MYSQL }}' > credential_mysql.json
 
       - name: Run summarizer and sentiment analyzer
         run: python news_summarizer_sentiment_analyzer.py

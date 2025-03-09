@@ -1,12 +1,12 @@
-name: Scrape Investing Technical
+name: Scraping Investing News
 
 on:
   schedule:
-    - cron: "0 * * * *"  # Runs every hour
+    - cron: "0 0 * * *"  # Runs daily
   workflow_dispatch:  # Allows manual trigger
 
 jobs:
-  scrape:
+  fetch:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,5 +24,5 @@ jobs:
       - name: Create credentials.json
         run: echo '${{ secrets.CREDENTIAL_MYSQL }}' > credential_mysql.json
 
-      - name: Run scraper
-        run: python scraping_investing_technical.py
+      - name: Run fetcher
+        run: python scraping_investing_news.py

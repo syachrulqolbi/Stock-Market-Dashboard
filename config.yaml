@@ -34,6 +34,18 @@ symbols_investing:
   FTSE 100: "UK100" # UK FTSE 100 Index
   Dow Jones: "US30" # US Dow Jones Industrial Average
 
+symbols_news_investing:
+  AUS200: "aus-200"  # Australian ASX 200 Index
+  ESP35: "spain-35"    # Spanish IBEX 35 Index
+  EUSTX50: "eu-stoxx50"  # Euro Stoxx 50 Index
+  FRA40: "france-40"    # French CAC 40 Index
+  GER40: "germany-30"   # German DAX 40 Index
+  JPN225: "japan-ni225"   # Japanese Nikkei 225 Index
+  NAS100: "nasdaq-composite"   # NASDAQ 100 Index
+  SPX500: "us-spx-500"   # S&P 500 Index
+  UK100: "uk-100"    # UK FTSE 100 Index
+  US30: "us-30"      # US Dow Jones Industrial Average
+
 minute_period: "7d"   # Fetch intraday (minute-level) data for the past 7 days
 minute_interval: "1m" # Use 1-minute interval for intraday data
 daily_period: "10y"   # Fetch daily-level data for the past 10 years

@@ -22,7 +22,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Create credentials.json
-        run: echo '${{ secrets.CREDENTIAL_GOOGLE_SHEETS }}' > credential_google_sheets.json
+        run: echo '${{ secrets.CREDENTIAL_MYSQL }}' > credential_mysql.json
 
       - name: Run fetcher
         run: python yfinance_news_fetcher.py
